@@ -95,8 +95,8 @@ open class TYPageViewController: UIViewController {
         }
     }
     
-    fileprivate var backView: UIScrollView!
-    
+    fileprivate var backView = UIScrollView()
+    fileprivate var isDragging = false
 
     // MARK: - Initializer
     
@@ -114,8 +114,17 @@ open class TYPageViewController: UIViewController {
         super.init(coder: aDecoder)
     }
     
-    override open func viewDidLoad() {
-        super.viewDidLoad()
+    override open func loadView() {
+        self.automaticallyAdjustsScrollViewInsets = false
+        backView.delegate = self
+        backView.decelerationRate = UIScrollViewDecelerationRateFast
+        self.view = backView
+    }
+    
+    override open func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        let width: CGFloat = 3.0 * self.view.bounds.size.width
+        backView.contentSize = CGSize(width: width, height: self.view.bounds.size.height)
     }
 
     override open func didReceiveMemoryWarning() {
@@ -127,8 +136,66 @@ open class TYPageViewController: UIViewController {
     open func setViewControllers(_ viewControllers: [UIViewController]?, direction: UIPageViewControllerNavigationDirection, animated: Bool, completion: ((Bool) -> Swift.Void)? = nil) {
         
         // TODO: - Scroll and Change appeared ViewController
+        guard var newViewControllers = viewControllers else {
+            
+            completion?(false)
+            return
+        }
         
+        delegate?.pageViewController?(self, willTransitionTo: newViewControllers)
+        
+        guard var currentViewControllers = _viewControllers else {
+            
+            // 最初のviewController
+            var viewFrame = self.view.bounds
+            viewFrame.origin.x = self.view.bounds.size.width
+            newViewControllers[0].view.frame = viewFrame
+            addChildViewController(newViewControllers[0])
+            backView.addSubview(newViewControllers[0].view)
+            newViewControllers[0].didMove(toParentViewController: self)
+            completion?(true)
+            return
+        }
+        
+        _viewControllers = newViewControllers
+        
+        switch direction {
+        case .forward:
+            currentViewControllers[0].willMove(toParentViewController: nil)
+            currentViewControllers[0].view.removeFromSuperview()
+            currentViewControllers[0].removeFromParentViewController()
+            
+            var viewFrame = self.view.bounds
+            viewFrame.origin.x = self.view.bounds.size.width
+            newViewControllers[0].view.frame = viewFrame
+            addChildViewController(newViewControllers[0])
+            backView.addSubview(newViewControllers[0].view)
+            newViewControllers[0].didMove(toParentViewController: self)
+            
+        case .reverse:
+            break
+            
+        }
+        
+        delegate?.pageViewController?(self, didFinishAnimating: true, previousViewControllers: currentViewControllers, transitionCompleted: true)
     }
     
     // TODO: - GestureRecognizer Function
+}
+
+extension TYPageViewController: UIScrollViewDelegate {
+    
+    public func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        
+    }
+    
+    public func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        
+        isDragging = true
+    }
+    
+    public func scrollViewWillEndDragging(_ scrollView: UIScrollView, withVelocity velocity: CGPoint, targetContentOffset: UnsafeMutablePointer<CGPoint>) {
+        
+        isDragging = false
+    }
 }
